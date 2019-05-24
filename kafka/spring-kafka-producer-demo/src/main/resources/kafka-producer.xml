@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xmlns:context="http://www.springframework.org/schema/context"
+       xmlns:util="http://www.springframework.org/schema/util"
+       xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context.xsd http://www.springframework.org/schema/util http://www.springframework.org/schema/util/spring-util.xsd">
+
+    <context:property-placeholder location="config.properties"/>
+
+    <context:component-scan base-package="com.wuhulala.kafka.producer"/>
+
+    <util:map id="kafka-config">
+        <description>kafka配置</description>
+        <entry key="bootstrap.servers" value="${bootstrap.servers}" />
+        <entry key="acks" value="${acks}" />
+        <entry key="retries" value="${retries}" />
+        <entry key="batch.size" value="${batch.size}" />
+        <entry key="linger.ms" value="${linger.ms}" />
+        <entry key="buffer.memory" value="${buffer.memory}" />
+        <entry key="key.serializer" value="${key.serializer}" />
+        <entry key="value.serializer" value="${value.serializer}" />
+        <entry key="partitioner.class" value="${partitioner.class}" />
+    </util:map>
+
+    <!-- kafka连接工厂 -->
+    <bean id="producerFactory" class="org.springframework.kafka.core.DefaultKafkaProducerFactory">
+        <constructor-arg name="configs" ref="kafka-config"/>
+    </bean>
+
+    <!-- kafka模板 -->
+    <bean class="org.springframework.kafka.core.KafkaTemplate">
+        <constructor-arg name="producerFactory" ref="producerFactory"/>
+        <property name="defaultTopic" value="${defaultTopic}"/>
+    </bean>
+
+
+</beans>

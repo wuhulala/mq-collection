@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xmlns:context="http://www.springframework.org/schema/context"
+       xmlns:util="http://www.springframework.org/schema/util"
+       xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context.xsd http://www.springframework.org/schema/util http://www.springframework.org/schema/util/spring-util.xsd">
+
+    <context:property-placeholder location="config.properties"/>
+
+    <context:component-scan base-package="com.wuhulala.kafka.consumer"/>
+
+    <util:map id="kafka-consumer-config">
+        <description>kafka消费者配置</description>
+        <entry key="bootstrap.servers" value="${bootstrap.servers}" />
+        <entry key="group.id" value="${group.id}"/>
+        <entry key="enable.auto.commit" value="${enable.auto.commit}"/>
+        <entry key="auto.commit.interval.ms" value="${auto.commit.interval.ms}"/>
+        <entry key="session.timeout.ms" value="${session.timeout.ms}"/>
+        <entry key="key.deserializer" value="${key.deserializer}"/>
+        <entry key="value.deserializer" value="${value.deserializer}"/>
+    </util:map>
+
+    <!-- kafka消费者连接工厂 -->
+    <bean id="consumerFactory" class="org.springframework.kafka.core.DefaultKafkaConsumerFactory">
+        <constructor-arg name="configs" ref="kafka-consumer-config"/>
+    </bean>
+
+    <!-- kafka 监听器容器工厂 -->
+    <bean id="containerFactory" class="org.springframework.kafka.config.ConcurrentKafkaListenerContainerFactory">
+        <!-- 并发配置 线程个数 -->
+        <property name="concurrency" value="4"/>
+        <property name="consumerFactory" ref="consumerFactory"/>
+    </bean>
+
+
+</beans>
