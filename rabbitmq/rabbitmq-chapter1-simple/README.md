@@ -1,0 +1,51 @@
+[TOC]
+
+## 发送/接收代码示例
+
+## Exchange 的几种转发方式
+
+### Fanout 
+
+> `Fanout`所有发送到该`Exchange`的消息转发至所有绑定的`Queue`上。
+
+![docs/images/topic-exchange.png](docs/images/exchange-fanout.png)
+
+上图所示，`生产者P1`将`msg1`推送到`Fanout Exchange`，`生产者P2`将`msg2`推送到`Fanout Exchange`，
+由于后面的三个消费者C1、C2、C3于这个Exchanger进行的绑定，所以都会接收到这两个消息。
+#### 代码示例
+
+### Direct
+
+> direct类型和上面的一种路由方式完全不同，direct就是直接的意思，通过这个字面意思，只有**消费者**配置的`RoutingKey`和**生产者**发送消息的时候设置的`RoutingKey`**完全一致**，才会进行转发消息。
+
+![docs/images/topic-exchange.png](docs/images/exchange-direct.png)
+
+1. 当`生产者P1`发送`RoutingKey`为`c1`的消息`c1_msg1`时，这时候将消息发送给`Direct Exchange`，
+2. `Direct Exchange`根据`c1`找对应得队列`Queue1`，这时候消息会发送给消费者`C1`。
+3. 同理，`生产者P2`发送的`c2_msg`会经过`Direct Exchange`发送给消费者`C2`
+#### 代码示例
+
+### Topic 
+> topic和上面的direct 有些区别，我这里把它理解为direct的超集，它可以在消费者端配置一个类似于正则表达式的东西，`Exchange`可以根据生产者的`RoutingKey`和消费者的规则进行一个正则匹配,匹配成功则转发消息到消费者上。，通过通配符来实现。
+
+它的约定是：
+- `RoutingKey`可以是一个句点号`.`分隔的字符串，如`a.b.c`、`news.shanghai`、`news.hangzhou`
+- 消费者端的`RoutingKey`中可以存在两种特殊字符`*`与`#`，用于做模糊匹配，其中`*`用于匹配一个单词，`#`用于匹配n（>=0）个单词
+
+![docs/images/topic-exchange.png](docs/images/exchange-topic.png)
+
+当生产者发送消息时，假设有以下几种情况
+
+1. 当`生产者P1`发送`RoutingKey`为`A.B.C`的消息`msg_A.B.C`时，这时候`Direct Exchange`会将消息转发给`C1`,`C2`,`C3`，
+
+2. 当`生产者P2`发送`RoutingKey`为`B.C`的消息`msg_A.B.C`时，这时候`Direct Exchange`会将消息转发给`C2`,`C3`，
+
+### header
+
+> headers 类型的交换器不依赖于路由键的匹配规则来路由消息，而是根据发送的消息内容中的 headers 属性进行匹配。在绑定队列和交换器时制定一组键值对， 当发送消息到交换器时， RabbitMQ 会获取到该消息的 headers (也是一个键值对的形式)，对比其中的键值对是否完全匹配队列和交换器绑定时指定的键值对，如果完全匹配则消息会路由到该队列，否则不会路由到该队列。 headers 类型的交换器性能会很差，而且也不实用，基本上不会看到它的存在。
+
+![docs/images/topic-exchange.png](docs/images/exchange-topic.png)
+
+1. 当`生产者P1`发送消息`msg`时，只有消费者`C1`这时候和他的请求头匹配，所以`Direct Exchange`只会将消息转发给`C1`。
+
+#### 代码测试
