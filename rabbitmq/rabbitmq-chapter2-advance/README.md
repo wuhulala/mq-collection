@@ -175,7 +175,7 @@ Tx.Commmit/.Commit-Ok (或者 Tx.Rollback/.Rollback-Ok) ， 事务机制多了�
 #### 多消费者，消息分发
 
 
-### Rabbit MQ 可靠性传输总结
+## Rabbit MQ 可靠性传输总结
 
 消息可靠传输一般是业务系统接入消息中间件时首要考虑的问题，一般消息中间件的消息 传输保障分为三个层级。
 
