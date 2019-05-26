@@ -61,8 +61,25 @@ public interface Constants {
 
 > headers 类型的交换器不依赖于路由键的匹配规则来路由消息，而是根据发送的消息内容中的 headers 属性进行匹配。在绑定队列和交换器时制定一组键值对， 当发送消息到交换器时， RabbitMQ 会获取到该消息的 headers (也是一个键值对的形式)，对比其中的键值对是否完全匹配队列和交换器绑定时指定的键值对，如果完全匹配则消息会路由到该队列，否则不会路由到该队列。 headers 类型的交换器性能会很差，而且也不实用，基本上不会看到它的存在。
 
-![docs/images/topic-exchange.png](docs/images/exchange-topic.png)
+![docs/images/topic-exchange.png](docs/images/exchange-header.png)
 
-1. 当`生产者P1`发送消息`msg`时，只有消费者`C1`这时候和他的请求头匹配，所以`Direct Exchange`只会将消息转发给`C1`。
+1. 当`生产者P1`发送消息`msg`时，只有消费者`C1`这时候和他的请求头匹配，所以`Header Exchange`只会将消息转发给`C1`。
 
 #### 代码测试
+
+Producer.java
+```java
+   AMQP.BasicProperties props = new AMQP.BasicProperties().builder()
+           .headers(ImmutableMap.<String, Object>of("a", "A", "b", "B")).build();
+
+   String msg = "msg";
+   System.out.println("Producer1 send ::: " + msg);
+   channel.basicPublish(Constants.HEADER_EXCHANGE_NAME, P_ROUTING_KEY_1, props, msg.getBytes());
+```
+
+Consumer.java
+```java
+  channel.queueBind(QUEUE_NAME, HEADER_EXCHANGE_NAME, "", ImmutableMap.<String, Object>of("a", "A", "b", "B"));
+
+```
+[点击查看](https://github.com/wuhulala/mq-collection/tree/master/rabbitmq/rabbitmq-chapter1-simple/src/main/java/com/wuhulala/rabbitmq/chapter1/exchange/header)
