@@ -31,7 +31,9 @@ public class ConfirmProducer {
             // 开启Confirm模式
             AMQP.Confirm.SelectOk ok = channel.confirmSelect();
             System.out.println(ok);
-            channel.basicPublish("confirm-exchange", "confirm", MessageProperties.PERSISTENT_BASIC, "hello tx".getBytes());
+            for (int i = 0; i < 10000000; i++) {
+                channel.basicPublish("confirm-exchange", "confirm", MessageProperties.PERSISTENT_BASIC, "hello tx".getBytes());
+            }
             logger.info("消息发送成功！");
         } catch (Exception e) {
             logger.error("消息发送失败", e);

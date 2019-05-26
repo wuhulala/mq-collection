@@ -28,9 +28,14 @@ public class TxProducer {
             channel.exchangeDeclare("tx-exchange", "direct");
 
             channel.txSelect();
-            channel.basicPublish("tx-exchange", "tx", MessageProperties.PERSISTENT_BASIC, "hello tx".getBytes());
-            int i = 1 / 0;
-            channel.txCommit();
+            for (int i = 1 ; i <= 10000000; i++) {
+                channel.basicPublish("tx-exchange", "tx", MessageProperties.PERSISTENT_BASIC, "hello tx".getBytes());
+                //channel.txCommit();
+                if (i % 100 == 0){
+                    channel.txCommit();
+                }
+            }
+            //channel.txCommit();
             logger.info("消息发送成功！");
         } catch (Exception e) {
             logger.error("消息发送失败", e);

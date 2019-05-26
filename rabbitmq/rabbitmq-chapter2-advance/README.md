@@ -1,6 +1,6 @@
 # RabbitMQ 高级特性
 
-## 生产者消息确认
+## 消息可靠性投递（可靠性发送）
 
 > 当消息的生产者将消息发送出去之后，消息 到底有没有正确地到达服务器呢?如果不进行特殊配置，默认情况下发送消息的操作是不会返回任何信息给生产者的，也就是默认情况下生产者是不知道消息有没有正确地到达服务器。如果在消息到达服务器之前己经丢失，持久化操作也解决不了这个问题，因为消息根本没有到达服务器，何谈持久化?
 
@@ -46,7 +46,6 @@ public static void main(String[] args) {
 ```
 事务确实能够解决消息发送方和 RabbitMQ 之间消息确认的问题，'只有消息成功被 RabbitMQ 接收，事务才能提交成功，
 否则便可在捕获异常之后进行事务回滚，与此同时可以使用**消息重发机制**来保证消息不丢失。
-
 
 除了这种方案保证消息发送的可靠性，还有其它什么方案呢？
 
@@ -100,9 +99,41 @@ public static void main(String[] args) {
     }
 ```
 
-* RabbitMQ高级特性-消息可靠性投递
+### 测试一下QPS
+
+服务器环境 部署在windows（i78700 6C 3.2GHZ 16G）上的一个docker容器上面，运行时发现CPU飙到4.3GHZ，利用率30% ，因为分配给整个docker了2C。2/8 = 25%
+
+
+1. Confirm 机制
+
+![](docs/images/confirm-speed.png)
+
+2. 事务机制
+
+![](docs/images/tx-speed.png)
+
+docker 容器内部负载
+
+![](docs/images/docker-internel.png)
+
+
+可以看到上面，事务机制的时候的qps，会有二十倍性能的下降，这是为什么呢，我猜因为不是批量提交。
+
+
+测试一下100条批量提交
+
+![](docs/images/tx-batch-speed.png)
+
+基本和confirm持平。但是由于confirm机制是异步机制，也就是代码在顺序上正常执行，如果需要确认消息正常发送到broker，使用的是callback机制。和future类似。所以在现实编码中，使用这两种的哪一个，可以对照future的机制。
+
+
+**QPS略微下降的原理**
+> 对于持久化的消息来说，两者都需要等待消息确认落盘之后才会返回(调用 Linux内核的fsync方法)。在同步等待的方式下， publisher confirm 机制发送一条消息需要通 信交互的命令是 2 条:Basic.Publish 和 Basic .Ack; 事务机制是 3 条 :Basic.Publish、
+Tx.Commmit/.Commit-Ok (或者 Tx.Rollback/.Rollback-Ok) ， 事务机制多了一个命令帧报文的交互，所以 QPS 会略微下降。
+
+
+------
 * RabbitMQ高级特性-幂等性保障
-* RabbitMQ高级特性-Confirm确认消息
 * RabbitMQ高级特性-Return消息机制
 * RabbitMQ高级特性-消费端自定义监听
 * RabbitMQ高级特性-消费端限流
