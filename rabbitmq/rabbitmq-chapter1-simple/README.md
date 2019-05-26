@@ -12,7 +12,6 @@
 
 上图所示，`生产者P1`将`msg1`推送到`Fanout Exchange`，`生产者P2`将`msg2`推送到`Fanout Exchange`，
 由于后面的三个消费者C1、C2、C3于这个Exchanger进行的绑定，所以都会接收到这两个消息。
-#### 代码示例
 
 ### Direct
 
@@ -24,6 +23,39 @@
 2. `Direct Exchange`根据`c1`找对应得队列`Queue1`，这时候消息会发送给消费者`C1`。
 3. 同理，`生产者P2`发送的`c2_msg`会经过`Direct Exchange`发送给消费者`C2`
 #### 代码示例
+
+consumer
+```java
+channel.queueDeclare(QUEUE_NAME, false, false, false, null);
+        
+        Consumer consumer = new DefaultConsumer(channel) {
+            @Override
+            public void handleDelivery(String consumerTag, Envelope envelope, AMQP.BasicProperties properties, byte[] body)
+                    throws IOException {
+                String msg = new String(body, "UTF-8");
+                System.out.println("Received is = '" + msg + "'");
+            }
+        };
+
+        channel.queueBind(QUEUE_NAME, DIRECT_EXCHANGE_NAME, "hello");
+        channel.basicConsume(QUEUE_NAME, true, consumer);
+
+```
+producer
+```java
+     Channel channel = ChannelFactory.getChannelInstance();
+
+    channel.exchangeDeclare(DIRECT_EXCHANGE_NAME, "direct");
+
+    String msg = "hello rabbitmq! ---- ";
+    channel.basicPublish(DIRECT_EXCHANGE_NAME, "hello", null, msg.getBytes());
+
+
+    channel.close();
+    channel.getConnection().close();
+```
+
+[点击查看](https://github.com/wuhulala/mq-collection/tree/master/rabbitmq/rabbitmq-chapter1-simple/src/main/java/com/wuhulala/rabbitmq/chapter1/exchange/direct)
 
 ### Topic 
 > topic和上面的direct 有些区别，我这里把它理解为direct的超集，它可以在消费者端配置一个类似于正则表达式的东西，`Exchange`可以根据生产者的`RoutingKey`和消费者的规则进行一个正则匹配,匹配成功则转发消息到消费者上。，通过通配符来实现。
