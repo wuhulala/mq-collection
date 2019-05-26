@@ -5,9 +5,10 @@ import com.rabbitmq.client.Channel;
 import com.rabbitmq.client.Connection;
 import com.rabbitmq.client.ConnectionFactory;
 
+import static com.wuhulala.rabbitmq.chapter1.exchange.topic.Constants.TOPIC_EXCHANGE_NAME;
+
 public class ProducerDemo {
 
-    public static final String EXCHANGE_NAME = "wuhulala-exchanger";
 
     public static void main(String[] args) throws Exception {
         // 1. 创建连接工厂, 设置属性
@@ -26,14 +27,14 @@ public class ProducerDemo {
 
         // 3. 使用connection创建channel
         Channel channel = connection.createChannel();
-        channel.exchangeDeclare(EXCHANGE_NAME, "direct");
+        channel.exchangeDeclare(TOPIC_EXCHANGE_NAME, "direct");
 
         // 4. 通过channel发送消息
         long begin = System.currentTimeMillis();
         for (int i = 0; i < 10000000; i++) {
             String msg = "hello rabbitmq! ---- " + i;
             // 不指定exchange的情况下, 使用默认的exchange, routingKey与队列名相等
-            channel.basicPublish(EXCHANGE_NAME, "hello", null, msg.getBytes());
+            channel.basicPublish(TOPIC_EXCHANGE_NAME, "hello", null, msg.getBytes());
         }
         long end = System.currentTimeMillis();
         System.out.println("send used::: " + (end - begin) + "ms");

@@ -38,8 +38,25 @@
 
 1. 当`生产者P1`发送`RoutingKey`为`A.B.C`的消息`msg_A.B.C`时，这时候`Direct Exchange`会将消息转发给`C1`,`C2`,`C3`，
 
-2. 当`生产者P2`发送`RoutingKey`为`B.C`的消息`msg_A.B.C`时，这时候`Direct Exchange`会将消息转发给`C2`,`C3`，
+2. 当`生产者P2`发送`RoutingKey`为`B.C`的消息`msg_A.B.C`时，这时候`Direct Exchange`只会将消息转发给,`C3`，
 
+#### 代码示例
+
+定义以上图的标准
+```
+public interface Constants {
+
+    String TOPIC_EXCHANGE_NAME = "topic-exchange";
+    String P_ROUTING_KEY_1 = "A.B.C";
+    String P_ROUTING_KEY_2 = "B.C";
+    String C_ROUTING_KEY_1 = "A.B.*";
+    String C_ROUTING_KEY_2 = "*.B.#";
+    String C_ROUTING_KEY_3 = "#.B.C";
+
+}
+```
+代码位置
+[点击查看](https://github.com/wuhulala/mq-collection/tree/master/rabbitmq/rabbitmq-chapter1-simple/src/main/java/com/wuhulala/rabbitmq/chapter1/exchange/topic)
 ### header
 
 > headers 类型的交换器不依赖于路由键的匹配规则来路由消息，而是根据发送的消息内容中的 headers 属性进行匹配。在绑定队列和交换器时制定一组键值对， 当发送消息到交换器时， RabbitMQ 会获取到该消息的 headers (也是一个键值对的形式)，对比其中的键值对是否完全匹配队列和交换器绑定时指定的键值对，如果完全匹配则消息会路由到该队列，否则不会路由到该队列。 headers 类型的交换器性能会很差，而且也不实用，基本上不会看到它的存在。

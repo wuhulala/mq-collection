@@ -10,10 +10,10 @@ import com.rabbitmq.client.Envelope;
 
 import java.io.IOException;
 
-import static com.wuhulala.rabbitmq.chapter1.ProducerDemo.EXCHANGE_NAME;
 
 public class ConsumerDemo {
     private final static String QUEUE_NAME = "hello";
+    private final static String EXCHANGE_NAME = "wuhulala-exchange";
 
     public static void main(String[] args) throws Exception {
         // 1. 创建连接工厂, 设置属性
