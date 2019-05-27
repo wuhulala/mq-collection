@@ -134,14 +134,88 @@ docker 容器内部负载
 Tx.Commmit/.Commit-Ok (或者 Tx.Rollback/.Rollback-Ok) ， 事务机制多了一个命令帧报文的交互，所以 QPS 会略微下降。
 
 ### 持久化存储
-// TODO
+常见的持久化就是数据库。那么在这里面，可以做持久化的大致有以下几个地方:
+
+1. exchange的持久化
+
+   是通过在声明`Exchange`是将` durable `参数置为 `true` 实现的。
+
+   ```java
+    /**
+        * Actively declare a non-autodelete exchange with no extra arguments
+        * @see com.rabbitmq.client.AMQP.Exchange.Declare
+        * @see com.rabbitmq.client.AMQP.Exchange.DeclareOk
+        * @param exchange the name of the exchange
+        * @param type the exchange type
+        * @param durable true if we are declaring a durable exchange (the exchange will survive a server restart)
+        * @throws java.io.IOException if an error is encountered
+        * @return a declaration-confirm method to indicate the exchange was successfully declared
+        */
+       Exchange.DeclareOk exchangeDeclare(String exchange, BuiltinExchangeType type, boolean durable) throws IOException;
+   ```
+
+   ![1558970884539](docs/images/1558970884539.png)
+
+   如果交换器不设置持久化，那么在 `RabbitMQ `服务重启之后，相关的交换器元数据会丢失。那么它具体会持久化到哪里呢？磁盘。
+
+2. Queue的持久化
+
+   ```java
+     /**
+        * Declare a queue
+        * @see com.rabbitmq.client.AMQP.Queue.Declare
+        * @see com.rabbitmq.client.AMQP.Queue.DeclareOk
+        * @param queue the name of the queue
+        * @param durable true if we are declaring a durable queue (the queue will survive a server restart)
+        * @param exclusive true if we are declaring an exclusive queue (restricted to this connection)
+        * @param autoDelete true if we are declaring an autodelete queue (server will delete it when no longer in use)
+        * @param arguments other properties (construction arguments) for the queue
+        * @return a declaration-confirm method to indicate the queue was successfully declared
+        * @throws java.io.IOException if an error is encountered
+        */
+       Queue.DeclareOk queueDeclare(String queue, boolean durable, boolean exclusive, boolean autoDelete,
+                                    Map<String, Object> arguments) throws IOException;
+   ```
+
+   如果队列不设置持久化，那么在 `RabbitMQ` 服务重启之后，相关队列的元数据会丢失，
+   此时数据也会丢失
+
+3. Message的持久化
+
+    将消息的投递模式 (`BasicProperties` 中的 `deliveryMode `属性)设置为 2 即可实现消息的持久化。
+
+   ![1558971373865](docs/images/1558971373865.png)
+
+   ​       在持久化的消息正确存入 `RabbitMQ` 之后，还需要有一段时间(虽然很短，但是不 可忽视〉才能存入磁盘之中。 `RabbitMQ `并不会为每条消息都进行同步存盘(调用内核的`fsync` 方法)的处理，可能仅仅保存到操作系统缓存之中而不是物理磁盘之中。如果在这段时间内 `RabbitMQ` 服务节点发生了岩机、重启等异常情况，消息保存还没来得及落盘，那么这些消息将会丢失。
+   ​        这个问题怎么解决呢?这里可以引入` RabbitMQ `的**镜像队列机制**，相当于配置了副本，如果主节点 (`master`) 在此特殊时间内挂掉，可以自动切换到从节点( `slave` ), 这样有效地保证了高可用性，除非整个集群都挂掉。虽然这样也不能完全保证` RabbitMQ` 消息 不丢失，但是配置了镜像队列要比没有配置镜像队列的可靠性要高很多，在实际生产环境中的 关键业务队列一般都会设置镜像队列。
+
+   ​       还可以在发送端引入上一节中(事务机制或者发送方确认机制)来保证消息己经正确地发送并存储至 `RabbitMQ `中，前提还要保证在调用 `channel.basicPublish` 方法的时候交换器能够将消息
+   正确路由到相应的队列之中。
+
+
+
+### 死信队列(DLX)
+
+`DLX`，全称为 `Dead-Letter-Exchange`，可以称之为死信交换器，也有人称之为死信邮箱。
+
+当消息在一个队列中变成死信 (dead message) 之后，它能被重新被发送到另一个交换器中，这个交换器就是 `DLX`，绑定 `DLX` 的队列就称之为死信队列。消息被拒绝、消息过期、无法入队，该何去何从，死信队列这里来。
+
+
+
+消息变成**死信**一般会有以下几种情况
+
+* 消息被拒绝 (Basic.Reject/Basic .Nack)，井且不能重新入队(设置 requeue 参数为 false;)
+
+* 消息过期;
+
+* 令队列达到最大长度。
+
+
 
 ### 延迟队列
 * 在订单系统中， 一个用户下单之后通常有 30 分钟的时间进行支付，如果 30 分钟之内没有支付成功，那么这个订单将进行异常处理，这时就可以使用延迟队列来处理这些 订单了 。
 * 用户希望通过手机远程遥控家里的智能设备在指定的时间进行工作。这时候就可以将 用户指令发送到延迟队列，当指令设定的时间到了再将指令推送到智能设备。
 // TODO
-
-### 
 
 ## 消息可靠性接收
 ### 消息接收的几种情况
@@ -169,8 +243,7 @@ Tx.Commmit/.Commit-Ok (或者 Tx.Rollback/.Rollback-Ok) ， 事务机制多了�
 
 #### Return消息机制
 
-#### 死信队列(DLX)
-消息被拒绝、消息过期、无法入队，该何去何从
+
 
 #### 多消费者，消息分发
 
