@@ -192,6 +192,19 @@ Tx.Commmit/.Commit-Ok (或者 Tx.Rollback/.Rollback-Ok) ， 事务机制多了�
    ​       还可以在发送端引入上一节中(事务机制或者发送方确认机制)来保证消息己经正确地发送并存储至 `RabbitMQ `中，前提还要保证在调用 `channel.basicPublish` 方法的时候交换器能够将消息
    正确路由到相应的队列之中。
 
+### TTL 队列
+
+通过 `channel . queueDeclare` 方法中的 `x-expires `参数可以控制队列被自动删除前处 于未使用状态的时间。未使用的意思是队列上没有任何的消费者，队列也没有被重新声明，并
+且在过期时间段内也未调用过 `Basic . Get` 命令。
+
+```java
+ Map<String, Object> props = new HashMap<String, Object>();
+ props.put("x-expires", 30 * 60 * 1000); // 设置 30分钟超时
+ channel.queueDeclare("ttl-queue", false, false, false, props);
+```
+
+`RabbitMQ` 会确保在过期时间到达后将队列删除，但是不保障删除的动作有多及时 。在 `RabbitMQ`重启后， 持久化的队列的过期时间会被重新计算。
+
 
 
 ### 死信队列(DLX)
