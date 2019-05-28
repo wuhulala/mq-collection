@@ -27,6 +27,8 @@ public class ChannelFactory {
         factory.setHost("localhost");
         factory.setPort(5672);
         factory.setVirtualHost("/");
+        factory.setUsername("guest");
+        //factory.setPassword("");
 
         try {
             Connection conn = factory.newConnection();

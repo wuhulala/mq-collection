@@ -194,16 +194,23 @@ Tx.Commmit/.Commit-Ok (或者 Tx.Rollback/.Rollback-Ok) ， 事务机制多了�
 
 ### TTL 队列
 
-通过 `channel . queueDeclare` 方法中的 `x-expires `参数可以控制队列被自动删除前处 于未使用状态的时间。未使用的意思是队列上没有任何的消费者，队列也没有被重新声明，并
-且在过期时间段内也未调用过 `Basic . Get` 命令。
+通过 `channel.queueDeclare` 方法中的 `x-expires `参数可以控制队列被自动删除前处于未使用状态的时间。未使用的意思是**队列上没有任何的消费者，队列也没有被重新声明，并且在过期时间段内也未调用过 `Basic.Get` 命令**。
 
 ```java
  Map<String, Object> props = new HashMap<String, Object>();
- props.put("x-expires", 30 * 60 * 1000); // 设置 30分钟超时
+ props.put("x-expires", 20 * 1000); // 设置 20s超时
  channel.queueDeclare("ttl-queue", false, false, false, props);
 ```
 
-`RabbitMQ` 会确保在过期时间到达后将队列删除，但是不保障删除的动作有多及时 。在 `RabbitMQ`重启后， 持久化的队列的过期时间会被重新计算。
+![1558973587493](docs/images/1558973587493.png)
+
+在没有`Channel`连接此`Queue`后的20s
+
+![1558973632154](docs/images/1558973632154.png)
+
+可以看到**NOT FOUND **
+
+`RabbitMQ` 会确保在过期时间到达后将队列删除，但是**不能保证删除的动作有多及时** 。在 `RabbitMQ`重启后， 持久化的队列的过期时间会被**重新计算**。
 
 
 
@@ -219,16 +226,76 @@ Tx.Commmit/.Commit-Ok (或者 Tx.Rollback/.Rollback-Ok) ， 事务机制多了�
 
 * 消息被拒绝 (Basic.Reject/Basic .Nack)，井且不能重新入队(设置 requeue 参数为 false;)
 
-* 消息过期;
+  ```
+   channel.basicConsume("normal-queue", false, new DefaultConsumer(channel){
+                  @Override
+                  public void handleDelivery(String consumerTag, Envelope envelope, AMQP.BasicProperties properties, byte[] body) throws IOException {
+                      // （消息id、multiple, requeue）
+                      channel.basicNack(envelope.getDeliveryTag(), false, false);
+                      System.out.println("拒绝收信成功。");
+                  }
+              });
+  ```
 
-* 令队列达到最大长度。
+  > multiple: 如果为true的话，拒绝所有消息，否则只拒绝`deliveryTag`这个指定的消息。
 
+* 消息过期
 
+  生产者首先发送一条`msg` ，然后经过交换器`NormalExchange`存储到队列 `NormalQueue` 中 。由于队列 `NormalQueue`  设置了过期时间为 10s， 在这 10s 内没有消费者消费这条消息，那么判定这条消息为过期。由于设置了 `DLX`， 过期之时， 消息被丢给交换器 `NormalExchange` 中，这时找到与 `NormalExchange` 匹配的队列 `DlxQueue`， 最后消息被存储在 `DlxQueue` 这个死信队列中。等到后续有需要可以消费这个队列。
+
+  ![1559048632442](docs/images/1559048632442.png)
+
+  ```java
+  Channel channel = ChannelFactory.getChannelInstance();
+  
+          try {
+              channel.exchangeDeclare("normal-exchange", BuiltinExchangeType.DIRECT, false);
+              channel.exchangeDeclare("dlx-exchange", BuiltinExchangeType.DIRECT, false);
+  
+  
+              // 普通TTL队列设置
+              Map<String, Object> arguments = new HashMap<String, Object>();
+              arguments.put("x-message-ttl", 10 * 1000); // 设置 20s超时
+              arguments.put("x-dead-letter-exchange", "dlx-exchange"); //
+              arguments.put("x-dead-letter-routing-key", "dlx");
+              channel.queueDeclare("normal-queue", false, false, false, arguments);
+              channel.queueBind("normal-queue", "normal-exchange", "dlx");
+  
+              // 死信交换机、死信队列开启
+              channel.queueDeclare("dlx-queue", true, false, false, null);
+              channel.queueBind("dlx-queue", "dlx-exchange", "dlx");
+  
+              channel.basicPublish("normal-exchange", "dlx",null, "hello dlx".getBytes());
+              // 不设置消费者
+  
+              channel.close();
+              channel.getConnection().close();
+  
+          } catch (IOException e) {
+              e.printStackTrace();
+          } catch (TimeoutException e) {
+              e.printStackTrace();
+          }
+  ```
+
+  
+
+* 队列达到最大长度。
+
+ 
 
 ### 延迟队列
+
+延迟队列指的就是可以在固定时间长度之后才可以被消费到。
+
+
+
 * 在订单系统中， 一个用户下单之后通常有 30 分钟的时间进行支付，如果 30 分钟之内没有支付成功，那么这个订单将进行异常处理，这时就可以使用延迟队列来处理这些 订单了 。
 * 用户希望通过手机远程遥控家里的智能设备在指定的时间进行工作。这时候就可以将 用户指令发送到延迟队列，当指令设定的时间到了再将指令推送到智能设备。
-// TODO
+
+延迟队列的实现就是通过`TTL + DLX`来实现，就是像我们上一节第二种实现一样。
+
+![1559051646670](docs/images/1559051646670.png)
 
 ## 消息可靠性接收
 ### 消息接收的几种情况

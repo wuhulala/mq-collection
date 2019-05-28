@@ -25,10 +25,11 @@ public class TTLConsumer {
     public static void main(String[] args) throws IOException {
         Channel channel = ChannelFactory.getChannelInstance();
 
-        Map<String, Object> props = new HashMap<String, Object>();
-        props.put("x-expires", 20 * 1000); // 设置 20s超时
+
         channel.exchangeDeclare("ttl-exchange", BuiltinExchangeType.DIRECT);
 
+        Map<String, Object> props = new HashMap<String, Object>();
+        props.put("x-expires", 20 * 1000); // 设置 20s超时
         channel.queueDeclare("ttl-queue", false, false, false, props);
 
         Consumer consumer = new DefaultConsumer(channel) {
