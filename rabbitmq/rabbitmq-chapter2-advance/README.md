@@ -297,6 +297,56 @@ Tx.Commmit/.Commit-Ok (或者 Tx.Rollback/.Rollback-Ok) ， 事务机制多了�
 
 ![1559051646670](docs/images/1559051646670.png)
 
+
+
+### 消息不可达
+
+​        现实中，可能会遇到一些没有绑定队列的exchange，或者是超时队列已经失效了，这个时候消息没有成功消费，如果我们不进行处理，消息就会丢失。
+
+
+
+#### 找不到队列，如何处理？
+
+`RabbitMQ`提供了一种机制，就是可以在发布消息的方法里设置mandatory为 true，这样在消息不可达的时候，会返回给生产者一个消息。
+
+```java
+channel.basicPublish("mandatory-exchange", "confirm",true, false, MessageProperties.PERSISTENT_BASIC, "hello tx".getBytes());
+        channel.addReturnListener(new ReturnListener() {
+            @Override
+            public void handleReturn(int replyCode, String replyText, String exchange, String routingKey,
+                                     AMQP.BasicProperties properties, byte[] body) throws IOException {
+                System.out.println("没有到达目的地的消息：：" + new String(body));
+            }
+        });
+```
+
+如果没有投递到目的地，就会进入`ReturnListener`的回调方法
+
+
+
+#### 备份交换机
+
+如果我们嫌上面的麻烦，我们可以直接设置一个备份的交换机。
+
+```java
+Map<String, Object> args = new HashMap<String, Object>(); 
+args.put("a1ternate-exchange", "a1ternateExchange"); 
+channe1.exchangeDec1are("norma1Exchange", "direct", true, fa1se, args); 
+channe1.exchangeDec1are("a1ternateExchange", "direct", true, fa1se, null); 
+```
+
+
+
+> 1. 如果设置的备份交换器不存在，客户端和 RabbitMQ 服务端都不会有异常出现，此时消息会丢失。
+>
+> 2. 如果备份交换器没有绑定任何队列，客户端和 RabbitMQ 服务端都不会有异常出现，此 时消息会丢失。
+>
+> 3. 如果备份交换器没有任何匹配的队列，客户端和 RabbitMQ 服务端都不会有异常出现，此时消息会丢失。
+>
+> 4. 如果备份交换器和 mandatory 参数一起使用，那么 mandatory 参数无效。
+
+
+
 ## 消息可靠性接收
 
 ### 幂等
@@ -389,9 +439,6 @@ public static void main(String[] args) throws Exception {
 ```
 
 因为我们设置了限流为global，并且设置为3个。所以所有的消费者都会被限流，可以看到每消费3个，所有的消费者才会开始下一波的消费。
-
-
-### Return消息机制
 
 ### 多消费者，消息分发
 

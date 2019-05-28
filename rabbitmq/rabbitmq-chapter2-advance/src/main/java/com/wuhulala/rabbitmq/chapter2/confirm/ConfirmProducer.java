@@ -49,6 +49,16 @@ public class ConfirmProducer {
             }
         });
 
+//        channel.basicPublish("mandatory-exchange", "confirm",true, false, MessageProperties.PERSISTENT_BASIC, "hello tx".getBytes());
+//        channel.addReturnListener(new ReturnListener() {
+//            @Override
+//            public void handleReturn(int replyCode, String replyText, String exchange, String routingKey,
+//                                     AMQP.BasicProperties properties, byte[] body) throws IOException {
+//                System.out.println("没有到达目的地的消息：：" + new String(body));
+//            }
+//        });
+
+
     }
 
 }
