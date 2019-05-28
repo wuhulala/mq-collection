@@ -101,7 +101,7 @@ public static void main(String[] args) {
     }
 ```
 
-### 测试一下QPS
+#### 测试一下QPS
 
 服务器环境 部署在windows（i78700 6C 3.2GHZ 16G）上的一个docker容器上面，运行时发现CPU飙到4.3GHZ，利用率30% ，因为分配给整个docker了2C。2/8 = 25%
 
@@ -314,16 +314,85 @@ Tx.Commmit/.Commit-Ok (或者 Tx.Rollback/.Rollback-Ok) ， 事务机制多了�
 #### 消息顺序
 假如消费者处理的消息需要依赖发送者发送消息的顺序，那么就需要一些机制来保证了,比如Producer发送的是m1、m2、m3,那么Consumer接收到的应该也是m1、m2、m3。
 
-
 #### 消费失败，重回队列
+
+```java
+ channel.basicConsume("normal-queue", false, new DefaultConsumer(channel){
+                @Override
+                public void handleDelivery(String consumerTag, Envelope envelope, AMQP.BasicProperties properties, byte[] body) throws IOException {
+                    // （消息id、multiple, requeue）
+                    channel.basicNack(envelope.getDeliveryTag(), false, true);
+                    //  （消息id, requeue）
+                    channel.basicReject(envelope.getDeliveryTag(), true);
+
+                    System.out.println("拒绝收信成功。");
+                }
+            });
+```
+
+- basicReject 只能拒绝单条消息
+
+- basicNack 可以拒绝多条消息
 
 #### 消息者慢，限流
 
-#### 消费者断开连接，TTL队列/消息
+`RabbitMQ`可以在**非自动确认**消息（即设置`autoAck`为`fasle`的情况）的前提下, 如果一定数目或者一定大小的消息未被确认前, 不进行消费新消息。可以通过`consumer`或者`channel`设置`qos`的值。其实这里的应用和`Kafka`差不多。
+
+> QoS（Quality of Service，[服务质量](https://baike.baidu.com/item/服务质量/9401950)）指一个网络能够利用各种基础技术，为指定的[网络通信](https://baike.baidu.com/item/网络通信)提供更好的服务能力, 是网络的一种安全机制， 是用来解决网络延迟和阻塞等问题的一种技术。
+
+设置每次3条
+
+```java
+public static void main(String[] args) throws Exception {
+        Channel channel = ChannelFactory.getChannelInstance();
+        channel.exchangeDeclare("quick-exchange", BuiltinExchangeType.DIRECT);
+        channel.queueDeclare("quick-queue", false, false, false, null);
+        channel.queueBind("quick-queue", "quick-exchange", "quick");
+        
+        // 设置 限流
+        // prefetchSize 最大的消息大小
+        // prefetchCount 最大的消息条数
+        // global 针对所有的消费者
+        channel.basicQos(0, 3, true);
+        
+        // 发送 10000条
+        for (int i = 0; i < 10000; i++) {
+            channel.basicPublish("quick-exchange", "quick", null, ("msg" + i).getBytes());
+        }
+
+        channel.basicConsume("quick-queue", false, new DefaultConsumer(channel){
+            @Override
+            public void handleDelivery(java.lang.String consumerTag, Envelope envelope, AMQP.BasicProperties properties, byte[] body) throws IOException {
+                logger.info(envelope.getDeliveryTag() + ":::::" + new String(body));
+                channel.basicAck(envelope.getDeliveryTag(), false);
+                try {
+                    Thread.sleep(2000);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+
+            }
+        });
+    }
+```
+
+
+
+```
+2019-05-28 22:23:58,899 pool-3-thread-4 [INFO ] com.wuhulala.rabbitmq.chapter2.qos.QosChannel$1.handleDelivery(QosChannel.java:52) 1:::::msg9169
+2019-05-28 22:23:58,901 pool-5-thread-3 [INFO ] com.wuhulala.rabbitmq.chapter2.qos.QosChannel$1.handleDelivery(QosChannel.java:52) 1:::::msg9376
+2019-05-28 22:23:59,097 pool-4-thread-3 [INFO ] com.wuhulala.rabbitmq.chapter2.qos.QosChannel$1.handleDelivery(QosChannel.java:52) 1:::::msg2776
+2019-05-28 22:24:00,904 pool-3-thread-4 [INFO ] com.wuhulala.rabbitmq.chapter2.qos.QosChannel$1.handleDelivery(QosChannel.java:52) 2:::::msg9170
+2019-05-28 22:24:00,905 pool-5-thread-3 [INFO ] com.wuhulala.rabbitmq.chapter2.qos.QosChannel$1.handleDelivery(QosChannel.java:52) 2:::::msg9377
+2019-05-28 22:24:01,100 pool-4-thread-3 [INFO ] com.wuhulala.rabbitmq.chapter2.qos.QosChannel$1.handleDelivery(QosChannel.java:52) 2:::::msg2777
+2019-05-28 22:24:02,905 pool-3-thread-4 [INFO ] com.wuhulala.rabbitmq.chapter2.qos.QosChannel$1.handleDelivery(QosChannel.java:52) 3:::::msg9171
+2019-05-28 22:24:02,906 pool-5-thread-3 [INFO ] com.wuhulala.rabbitmq.chapter2.qos.QosChannel$1.handleDelivery(QosChannel.java:52) 3:::::msg9378
+```
+
+因为我们设置了限流为global，并且设置为3个。所以所有的消费者都会被限流，可以看到每消费3个，所有的消费者才会开始下一波的消费。
+
 
 #### Return消息机制
-
-
 
 #### 多消费者，消息分发
 

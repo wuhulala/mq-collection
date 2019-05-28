@@ -50,6 +50,7 @@ public class DlxConsumer {
                 public void handleDelivery(String consumerTag, Envelope envelope, AMQP.BasicProperties properties, byte[] body) throws IOException {
 
                     channel.basicNack(envelope.getDeliveryTag(), false, false);
+                    channel.basicReject(envelope.getDeliveryTag(), true);
                     System.out.println("拒绝收信成功。");
                 }
             });
