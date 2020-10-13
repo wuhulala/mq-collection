@@ -14,7 +14,7 @@
         <spring.version>4.3.2.RELEASE</spring.version>
         <activemq.version>5.14.4</activemq.version>
         <fastjson.version>1.2.28</fastjson.version>
-        <junit.version>4.12</junit.version>
+        <junit.version>4.13.1</junit.version>
     </properties>
     <dependencies>
         <!--所有测试 基于junit-->
